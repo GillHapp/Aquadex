@@ -181,7 +181,7 @@ We welcome contributions to AquaDex! If you'd like to improve the project, feel 
 2. **Clone your fork**:
 
    ```bash
-   git clone https://github.com/yourusername/aquadex.git
+   git clone https://github.com/GillHapp/Aquadex
    ```
 
 3. **Create a new branch**:
