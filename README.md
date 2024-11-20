@@ -66,7 +66,7 @@ To set up AquaDex locally, follow these steps:
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/yourusername/aquadex.git
+   git clone https://github.com/GillHapp/Aquadex
    cd aquadex
    ```
 
