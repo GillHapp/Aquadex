@@ -1,68 +1,10 @@
 import React, { useState } from "react";
+import Liquidity from "./Liquidity"; // Import your Liquidity component
 import dexABI from "./contract.json";
 import { ethers, parseEther } from "ethers";
 
 const provider = new ethers.BrowserProvider(window.ethereum);
 const dexContractAddress = "0xeC56bC8Fa6AEd2CD45395cAbaF45Cc3162B65bD2";
-
-const checkIfWalletIsConnected = async () => {
-    if (window.ethereum) {
-        try {
-            console.log("Connected to provider", provider);
-
-            const signer = await provider.getSigner();
-            console.log("signer", signer);
-            const dexContract = new ethers.Contract(dexContractAddress, dexABI, signer);
-
-            // Check the current network
-            const network = await provider.getNetwork();
-            console.log("Current network:", network);
-
-            const crossfiChainId = 4157n; // CrossFi Testnet Chain ID (not a regular number, use 'n' for BigInt)
-
-            if (network.chainId !== crossfiChainId) {
-                alert("You are not connected to the CrossFi Testnet. Please switch your network to CrossFi Testnet.");
-                return; // Stop execution if on the wrong network
-            }
-
-            console.log("dexContract", dexContract);
-
-            const name = await dexContract.name();
-            console.log("name", name);
-
-            const totalSupply = await dexContract.totalSupply();
-            console.log("swap", totalSupply.toString());
-
-            const tokenIn = ethers.parseEther("0.1");
-            console.log("tokenIn", tokenIn);
-
-            const requiredEthForLiquidity = await dexContract.calculateRequiredEthForLiquidity(tokenIn);
-
-            // Execute the transaction
-            const tx = await dexContract.swapEthToToken({
-                value: tokenIn, // Sending ETH along with the function call
-            });
-
-            console.log("Transaction submitted:", tx);
-
-            // Wait for the transaction to be mined
-            const receipt = await tx.wait();
-            console.log("Transaction mined:", receipt);
-
-            alert(`Swap successful! Transaction Hash: ${tx.hash}`);
-        } catch (error) {
-            console.error("Error:", error);
-        }
-    } else {
-        alert("MetaMask is not installed. Please install it to use this feature.");
-    }
-};
-
-
-const handleLiquidityClick = () => {
-    alert("Redirecting to Liquidity page...");
-    window.location.href = "./add-liquidity"
-};
 
 const Swap = () => {
     const [topToken, setTopToken] = useState("XFI");
@@ -70,6 +12,7 @@ const Swap = () => {
     const [inputValue, setInputValue] = useState("");
     const [calculatedValue, setCalculatedValue] = useState("");
     const [isLoading, setIsLoading] = useState(false); // Loading state
+    const [showLiquidity, setShowLiquidity] = useState(false); // State to control liquidity manager visibility
 
     const handleInputChange = async (e) => {
         const value = (e.target.value).toString();
@@ -139,7 +82,6 @@ const Swap = () => {
     const swapEthToToken = async (ethAmount) => {
         try {
             const signer = await provider.getSigner();
-            console.log("signer", signer);
             const dexContract = new ethers.Contract(dexContractAddress, dexABI, signer);
             const ethInput = parseEther(ethAmount);
             const tx = await dexContract.swapEthToToken({
@@ -157,7 +99,6 @@ const Swap = () => {
     const swapTokenToEth = async (tokenAmount) => {
         try {
             const signer = await provider.getSigner();
-            console.log("signer", signer);
             const dexContract = new ethers.Contract(dexContractAddress, dexABI, signer);
             const tokenInput = parseEther(tokenAmount);
 
@@ -171,49 +112,67 @@ const Swap = () => {
     };
 
     return (
-        <div style={styles.container}>
-            <button onClick={handleLiquidityClick} style={styles.liquidityButton}>
-                ⚙️ Liquidity
-            </button>
-            <h2 style={styles.title}>Swap</h2>
-            <div style={styles.swapBox}>
+        <div style={styles.wrapper}>
+            <div style={styles.infoBanner}>
+                In order to interact with the DEX you need to be on CrossFi Testnet
+            </div>
 
-                <div style={styles.tokenGroup}>
-                    <label style={styles.label}>{topToken}</label>
-                    <input
-                        type="number"
-                        value={inputValue}
-                        onChange={handleInputChange}
-                        style={styles.input}
-                        placeholder={`Enter ${topToken} amount`}
-                    />
-                </div>
-
-                <button onClick={handleSwapClick} style={styles.swapButton}>
-                    ⇅
+            <div style={styles.container}>
+                {/* Button to toggle between swap and liquidity manager */}
+                <button
+                    onClick={() => setShowLiquidity(!showLiquidity)}
+                    style={styles.liquidityButton}
+                >
+                    ⚙️ Liquidity
                 </button>
 
-                <div style={styles.tokenGroup}>
-                    <label style={styles.label}>{bottomToken}</label>
-                    <input
-                        type="text"
-                        value={calculatedValue}
-                        readOnly
-                        style={styles.input}
-                        placeholder={`Calculated ${bottomToken} amount`}
-                    />
-                </div>
+                {/* Conditionally render the Liquidity or Swap UI */}
+                {showLiquidity ? (
+                    <Liquidity /> // Render the Liquidity Manager here
+                ) : (
+                    <>
+                        <h2 style={styles.title}>Swap</h2>
+                        <div style={styles.swapBox}>
 
-                <button onClick={handleSwap} style={styles.actionButton}>
-                    {isLoading ? (
-                        <div style={styles.spinner}></div> // Show spinner when loading
-                    ) : (
-                        `Swap ${topToken} to ${bottomToken}`
-                    )}
-                </button>
+                            <div style={styles.tokenGroup}>
+                                <label style={styles.label}>{topToken}</label>
+                                <input
+                                    type="number"
+                                    value={inputValue}
+                                    onChange={handleInputChange}
+                                    style={styles.input}
+                                    placeholder={`Enter ${topToken} amount`}
+                                />
+                            </div>
 
-                {isLoading && (
-                    <div style={styles.loadingText}>Processing your transaction...</div>
+                            <button onClick={handleSwapClick} style={styles.swapButton}>
+                                ⇅
+                            </button>
+
+                            <div style={styles.tokenGroup}>
+                                <label style={styles.label}>{bottomToken}</label>
+                                <input
+                                    type="text"
+                                    value={calculatedValue}
+                                    readOnly
+                                    style={styles.input}
+                                    placeholder={`Calculated ${bottomToken} amount`}
+                                />
+                            </div>
+
+                            <button onClick={handleSwap} style={styles.actionButton}>
+                                {isLoading ? (
+                                    <div style={styles.spinner}></div> // Show spinner when loading
+                                ) : (
+                                    `Swap ${topToken} to ${bottomToken}`
+                                )}
+                            </button>
+
+                            {isLoading && (
+                                <div style={styles.loadingText}>Processing your transaction...</div>
+                            )}
+                        </div>
+                    </>
                 )}
             </div>
         </div>
@@ -221,7 +180,22 @@ const Swap = () => {
 };
 
 const styles = {
-
+    wrapper: {
+        position: "relative",
+    },
+    infoBanner: {
+        backgroundColor: "#f0a500",
+        padding: "0.5rem 0.5rem",
+        textAlign: "center",
+        fontSize: "0.5rem",
+        fontWeight: "bold",
+        color: "linear-gradient(135deg, rgba(18, 194, 233, 0.9), rgba(196, 113, 237, 0.9), rgba(247, 121, 125, 0.9))",
+        borderRadius: "5px 5px 0 0",
+        marginTop: "2rem",
+        marginBottom: "1rem",
+        marginLeft: "30rem",
+        marginRight: "30rem",
+    },
     container: {
         marginTop: "120px",
         padding: "2rem",
@@ -248,6 +222,12 @@ const styles = {
         fontSize: "0.9rem",
         boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
         transition: "transform 0.2s, box-shadow 0.2s",
+    },
+    link: {
+        color: "white",
+        textDecoration: "none",
+        fontWeight: "bold",
+        fontSize: "16px",
     },
     swapBox: {
         display: "flex",
@@ -326,7 +306,6 @@ const styles = {
         marginTop: "1rem",
         color: "white",
     },
-
 };
 
 export default Swap;

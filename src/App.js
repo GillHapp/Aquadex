@@ -11,7 +11,7 @@ const App = () => {
       <Routes>
         {/* Define different routes for your components */}
         <Route path="/" element={<Swap />} /> {/* Default route for the Swap component */}
-        <Route path="/add-liquidity" element={<AddLiquidity />} /> {/* Route for adding liquidity */}
+        <Route path="/liquidity" element={<AddLiquidity />} /> {/* Route for adding liquidity */}
       </Routes>
     </Router>
   );
