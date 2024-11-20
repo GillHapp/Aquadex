@@ -1,0 +1,73 @@
+/* Add smooth animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Add a subtle pulse effect */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  }
+
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  }
+}
+
+/* Bounce effect on hover */
+.hover-bounce {
+  transition: transform 0.2s ease;
+}
+
+.hover-bounce:hover {
+  transform: scale(1.2);
+}
+
+/* Glow effect on hover */
+.hover-glow {
+  transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+}
+
+.hover-glow:hover {
+  background-color: rgba(59, 130, 246, 0.8);
+  box-shadow: 0 8px 16px rgba(59, 130, 246, 0.6);
+  transform: scale(1.05);
+}
+
+/* Input focus animation */
+input:focus {
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5), 0 0 20px rgba(59, 130, 246, 0.8);
+  transform: scale(1.02);
+  outline: none;
+}
+
+/* Swap button animation */
+.swapButton {
+  animation: pulse 2s infinite ease-in-out;
+}
+
+/* Smooth transitions for all buttons */
+button {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Container fade-in */
+.container {
+  animation: fadeIn 1s ease-out;
+}
