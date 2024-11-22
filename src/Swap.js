@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Liquidity from "./Liquidity"; // Import your Liquidity component
 import dexABI from "./contract.json";
 import { ethers, parseEther } from "ethers";
 
-const provider = new ethers.BrowserProvider(window.ethereum);
+const tokenContractAddress = "0xc094c8843Ef7329C4ba6De95afF792e650ce74A0";
 const dexContractAddress = "0xeC56bC8Fa6AEd2CD45395cAbaF45Cc3162B65bD2";
 
 const Swap = () => {
@@ -11,19 +11,45 @@ const Swap = () => {
     const [bottomToken, setBottomToken] = useState("DXFI");
     const [inputValue, setInputValue] = useState("");
     const [calculatedValue, setCalculatedValue] = useState("");
-    const [isLoading, setIsLoading] = useState(false); // Loading state
-    const [showLiquidity, setShowLiquidity] = useState(false); // State to control liquidity manager visibility
+    const [isLoading, setIsLoading] = useState(false);
+    const [showLiquidity, setShowLiquidity] = useState(false);
+    const [signer, setSigner] = useState(null); // State to store the signer
+    const [provider, setProvider] = useState(null); // State to store the provider
+
+    useEffect(() => {
+        // Initialize provider and check if wallet is already connected
+        const initializeProvider = async () => {
+            if (window.ethereum) {
+                const newProvider = new ethers.BrowserProvider(window.ethereum);
+                setProvider(newProvider);
+            } else {
+                alert("Please install a wallet like MetaMask to use this DEX.");
+            }
+        };
+        initializeProvider();
+    }, []);
+
+    const connectWallet = async () => {
+        try {
+            if (!provider) return alert("Wallet provider not found.");
+            const accounts = await provider.send("eth_requestAccounts", []);
+            const walletSigner = await provider.getSigner();
+            setSigner(walletSigner);
+            console.log("Wallet connected:", accounts[0]);
+            alert("Wallet connected successfully!");
+        } catch (error) {
+            console.error("Error connecting wallet:", error);
+        }
+    };
 
     const handleInputChange = async (e) => {
-        const value = (e.target.value).toString();
+        const value = e.target.value.toString();
         setInputValue(value);
 
         if (topToken === "XFI") {
-            // Call calculateEthToToken if topToken is XFI
             const calculated = await calculateEthToToken(value);
             setCalculatedValue(calculated);
         } else if (topToken === "DXFI") {
-            // Call calculateTokenToEth if topToken is DXFI
             const calculated = await calculateTokenToEth(value);
             setCalculatedValue(calculated);
         }
@@ -32,84 +58,101 @@ const Swap = () => {
     const handleSwapClick = () => {
         setTopToken(bottomToken);
         setBottomToken(topToken);
-        setInputValue(""); // Reset input value after swap
-        setCalculatedValue(""); // Reset calculated value after swap
+        setInputValue("");
+        setCalculatedValue("");
     };
 
     const handleSwap = async () => {
-        setIsLoading(true); // Show loading indicator
+        if (!signer) {
+            await connectWallet();
+        }
 
+        if (!signer) return alert("Wallet connection required to proceed.");
+
+        setIsLoading(true);
         try {
             if (topToken === "XFI") {
-                // Swap ETH to Token (XFI)
                 await swapEthToToken(inputValue);
             } else if (topToken === "DXFI") {
-                // Swap Token to ETH (DXFI)
                 await swapTokenToEth(inputValue);
             }
         } catch (error) {
             console.error("Error during swap:", error);
         } finally {
-            setIsLoading(false); // Hide loading indicator once transaction is done
+            setIsLoading(false);
         }
     };
 
-    // Function to call calculateEthToToken
     const calculateEthToToken = async (ethAmount) => {
         try {
             const dexContract = new ethers.Contract(dexContractAddress, dexABI, provider);
             const ethInput = parseEther(ethAmount);
             const result = await dexContract.calculateEthToToken(ethInput);
-            return ethers.formatUnits(result, 18); // Assuming the result is in 18 decimals
+            return ethers.formatUnits(result, 18);
         } catch (error) {
             console.error("Error calling calculateEthToToken:", error);
         }
     };
 
-    // Function to call calculateTokenToEth
     const calculateTokenToEth = async (tokenAmount) => {
         try {
             const dexContract = new ethers.Contract(dexContractAddress, dexABI, provider);
             const tokenInput = parseEther(tokenAmount);
             const result = await dexContract.calculateTokenToEth(tokenInput);
-            return ethers.formatUnits(result, 18); // Assuming the result is in 18 decimals
+            return ethers.formatUnits(result, 18);
         } catch (error) {
             console.error("Error calling calculateTokenToEth:", error);
         }
     };
 
-    // Function to swap ETH to Token (XFI)
     const swapEthToToken = async (ethAmount) => {
         try {
-            const signer = await provider.getSigner();
             const dexContract = new ethers.Contract(dexContractAddress, dexABI, signer);
             const ethInput = parseEther(ethAmount);
             const tx = await dexContract.swapEthToToken({
-                value: ethInput, // Sending ETH to the contract
+                value: ethInput,
             });
             console.log("Swap ETH to Token submitted:", tx);
-            await tx.wait(); // Wait for the transaction to be mined
+            await tx.wait();
             alert(`Swap successful! Transaction Hash: ${tx.hash}`);
         } catch (error) {
             console.error("Error swapping ETH to Token:", error);
         }
     };
 
-    // Function to swap Token to ETH (DXFI)
     const swapTokenToEth = async (tokenAmount) => {
         try {
-            const signer = await provider.getSigner();
+            const tokenContract = new ethers.Contract(tokenContractAddress, dexABI, signer);
             const dexContract = new ethers.Contract(dexContractAddress, dexABI, signer);
             const tokenInput = parseEther(tokenAmount);
 
-            const tx = await dexContract.swapTokenToEth(tokenInput); // Sending tokens to the contract
+            // Check allowance first
+            const allowance = await tokenContract.allowance(await signer.getAddress(), dexContractAddress);
+            if (allowance < tokenInput) {
+                const approveTx = await tokenContract.approve(dexContractAddress, tokenInput);
+                console.log("Approval submitted:", approveTx);
+                await approveTx.wait(); // Wait for approval to be mined
+                console.log("Approval granted!");
+            }
+
+            // Estimate gas for the swap function
+            const gasEstimate = await dexContract.estimateGas.swapTokenToEth(tokenInput);
+            console.log("Estimated Gas:", gasEstimate.toString());
+
+            // Proceed with the swap and send gas estimation
+            const tx = await dexContract.swapTokenToEth(tokenInput, {
+                value: gasEstimate, // Set the gas limit
+            });
+
             console.log("Swap Token to ETH submitted:", tx);
             await tx.wait(); // Wait for the transaction to be mined
             alert(`Swap successful! Transaction Hash: ${tx.hash}`);
         } catch (error) {
             console.error("Error swapping Token to ETH:", error);
+            alert(`Error: ${error.message}`); // Display the error to the user
         }
     };
+
 
     return (
         <div style={styles.wrapper}>
@@ -118,7 +161,6 @@ const Swap = () => {
             </div>
 
             <div style={styles.container}>
-                {/* Button to toggle between swap and liquidity manager */}
                 <button
                     onClick={() => setShowLiquidity(!showLiquidity)}
                     style={styles.liquidityButton}
@@ -126,14 +168,12 @@ const Swap = () => {
                     ⚙️ Liquidity
                 </button>
 
-                {/* Conditionally render the Liquidity or Swap UI */}
                 {showLiquidity ? (
-                    <Liquidity /> // Render the Liquidity Manager here
+                    <Liquidity />
                 ) : (
                     <>
                         <h2 style={styles.title}>Swap</h2>
                         <div style={styles.swapBox}>
-
                             <div style={styles.tokenGroup}>
                                 <label style={styles.label}>{topToken}</label>
                                 <input
@@ -162,7 +202,7 @@ const Swap = () => {
 
                             <button onClick={handleSwap} style={styles.actionButton}>
                                 {isLoading ? (
-                                    <div style={styles.spinner}></div> // Show spinner when loading
+                                    <div style={styles.spinner}></div>
                                 ) : (
                                     `Swap ${topToken} to ${bottomToken}`
                                 )}
@@ -178,6 +218,9 @@ const Swap = () => {
         </div>
     );
 };
+
+
+
 
 const styles = {
     wrapper: {
